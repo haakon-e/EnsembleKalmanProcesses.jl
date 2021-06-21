@@ -30,8 +30,9 @@ n_param = length(param_names)
 # priors = ParameterDistribution(prior_dist, constraints, param_names)
 
 ## Set known parameter
-known_value = [Samples([0.0])]
-priors = ParameterDistribution(known_value, [no_constraint()], param_names)
+known_value = 1.0
+distribn = [Samples([known_value])]
+priors = ParameterDistribution(distribn, [no_constraint()], param_names)
 
 # Define observation window (s)
 t_starts = [4.0] * 3600  # 4hrs
@@ -47,7 +48,7 @@ perform_PCA = true # Performs PCA on data
 # Define name of PyCLES simulation to learn from
 les_names = ["Bomex"]
 les_suffixes = ["may18"]
-les_root = "/Users/haakon/Documents/CliMA/SEDMF/LES_data"  # "/groups/esm/ilopezgo"
+les_root = "/groups/esm/ilopezgo"
 scm_names = ["StochasticBomex"]  # same as `les_names` in perfect model setting
 scm_data_root = pwd()  # path to folder with `Output.<scm_name>.00000` files
 
@@ -94,12 +95,12 @@ end
 #########
 
 algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
-N_ens = 2  # number of ensemble members
+N_ens = 40  # number of ensemble members
 println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
 
 initial_params = construct_initial_ensemble(priors, N_ens, rng_seed=rand(1:1000))
 ekobj = EnsembleKalmanProcess(initial_params, yt, Γy, algo)
-scampy_dir = "/Users/haakon/Documents/CliMA/SCAMPy/"  # path to SCAMPy
+scampy_dir = "/groups/esm/hervik/calibration/SCAMPy"  # path to SCAMPy
 
 # Define caller function
 @everywhere g_(x::Array{Float64,1}) = run_SCAMPy(
@@ -107,7 +108,7 @@ scampy_dir = "/Users/haakon/Documents/CliMA/SCAMPy/"  # path to SCAMPy
     )
 
 # Create output dir
-outdir_root = "/Users/haakon/Documents/CliMA/SEDMF/output"
+outdir_root = "/groups/esm/hervik/calibration/output/noise$(known_value)"
 outdir_path = joinpath(outdir_root, "results_ensemble_p$(n_param)_e$(N_ens)")
 println("Name of outdir path for this EKP is: $outdir_path")
 mkpath(outdir_path)
