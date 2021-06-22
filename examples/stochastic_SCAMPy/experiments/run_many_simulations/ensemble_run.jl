@@ -13,10 +13,11 @@ using JLD2
 using NPZ
 
 
-function run_ensemble(var_param)
+function run_ensemble(var_param, n_ens)
     #########
     #########  Define the parameters and their priors
     #########
+    println("Run ensemble for noise=$var_param.")
 
     # Define the parameters that we want to learn
     param_names = ["stochastic_noise"]
@@ -53,7 +54,7 @@ function run_ensemble(var_param)
     # Define name of PyCLES simulation to learn from
     les_names = ["Bomex"]
     les_suffixes = ["may18"]
-    les_root = "/Users/haakon/Documents/CliMA/SEDMF/LES_data"  # "/groups/esm/ilopezgo"
+    les_root = "/groups/esm/ilopezgo"
     scm_names = ["StochasticBomex"]  # same as `les_names` in perfect model setting
     scm_data_root = pwd()  # path to folder with `Output.<scm_name>.00000` files
 
@@ -100,12 +101,12 @@ function run_ensemble(var_param)
     #########
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
-    N_ens = 8  # number of ensemble members
+    N_ens = n_ens  # number of ensemble members
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
 
     initial_params = construct_initial_ensemble(priors, N_ens, rng_seed=rand(1:1000))
     ekobj = EnsembleKalmanProcess(initial_params, yt, Γy, algo)
-    scampy_dir = "/Users/haakon/Documents/CliMA/SCAMPy"  # "/groups/esm/hervik/calibration/SCAMPy"  # path to SCAMPy
+    scampy_dir = "/groups/esm/hervik/calibration/SCAMPy"  # path to SCAMPy
 
     # Define caller function
     @everywhere g_(x::Array{Float64,1}) = run_SCAMPy(
@@ -113,7 +114,7 @@ function run_ensemble(var_param)
         )
 
     # Create output dir
-    outdir_root = "/Users/haakon/Documents/CliMA/SEDMF/output/fix_noise2/scm_data"  # "/groups/esm/hervik/calibration/output/noise$(variance_param)"
+    outdir_root = "/groups/esm/hervik/calibration/output/fix1"
     outdir_path = joinpath(outdir_root, "noise$(variance_param)")  # joinpath(outdir_root, "results_ensemble_p$(n_param)_e$(N_ens)")
     println("Name of outdir path for this EKP is: $outdir_path")
     mkpath(outdir_path)

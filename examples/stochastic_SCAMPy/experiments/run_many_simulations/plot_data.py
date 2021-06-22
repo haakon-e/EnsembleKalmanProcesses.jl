@@ -282,7 +282,8 @@ def load_scm_data(scm_folders):
     return data
 
 # Folders
-root_folder = Path("/Users/haakon/Documents/CliMA/SEDMF/output/fix_noise2")
+# root_folder = Path("/Users/haakon/Documents/CliMA/SEDMF/output/fix_noise2")
+root_folder = Path("/central/groups/esm/hervik/calibration/output/fix1")
 scm_root_folder = root_folder / "scm_data"
 les_folder = root_folder / "les_data"
 plotsdir = root_folder / "plots"
@@ -297,42 +298,67 @@ all_scm_data = load_scm_data(scm_folders)
 # get LES data
 les_data = get_LES_data(les_folder)
 
-# Initialize PlottingArgs objects
-means_fluxes = MeansFluxes(plotsdir, title_suffix="")
-vars_covars = VarsCovars(plotsdir, title_suffix="")
-third = ThirdOrder(plotsdir, title_suffix="")
+def all_plots(scm_data, suffix=""):
+	# Initialize PlottingArgs objects
+	means_fluxes = MeansFluxes(plotsdir, title_suffix=suffix)
+	vars_covars = VarsCovars(plotsdir, title_suffix=suffix)
+	third = ThirdOrder(plotsdir, title_suffix=suffix)
 
-print("Initializing plots...")
-# Initialize plots
-initialize_plot2(means_fluxes)
-initialize_plot2(vars_covars)
-initialize_plot2(third)
+	print("Initializing plots...")
+	# Initialize plots
+	initialize_plot2(means_fluxes)
+	initialize_plot2(vars_covars)
+	initialize_plot2(third)
 
-# Plot LES
-plot_les2(means_fluxes, les_data)
-plot_les2(vars_covars, les_data)
-plot_les2(third, les_data)
+	# Plot LES
+	plot_les2(means_fluxes, les_data)
+	plot_les2(vars_covars, les_data)
+	plot_les2(third, les_data)
 
-# colors:  https://colorbrewer2.org/?type=diverging&scheme=Spectral&n=10
-colors = ['#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2']
+	# colors:  https://colorbrewer2.org/?type=diverging&scheme=Spectral&n=10
+	# colors = ['#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2']
+	colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f']
 
-print("Plotting SCM...")
-# Plot SCM
-for i, key in enumerate(all_scm_data):
-    data = all_scm_data[key]
+	print("Plotting SCM...")
+	# Plot SCM
+	for i, key in enumerate(scm_data):
+	    data = all_scm_data[key]
 
-    scm_label = key[5:]
-    plot_scm2(means_fluxes, data, scm_label, colors[i])
-    plot_scm2(vars_covars, data, scm_label, colors[i])
-    plot_scm2(third, data, scm_label, colors[i])
+	    scm_label = key[5:]
+	    plot_scm2(means_fluxes, data, scm_label, colors[i])
+	    plot_scm2(vars_covars, data, scm_label, colors[i])
+	    plot_scm2(third, data, scm_label, colors[i])
 
-finalize_plot2(means_fluxes)
-finalize_plot2(vars_covars)
-finalize_plot2(third)
-print("Done!")
+	finalize_plot2(means_fluxes)
+	finalize_plot2(vars_covars)
+	finalize_plot2(third)
+	print("Done!")
 
+# all
+all_plots(all_scm_data, "_all")
 
+# 0.0
+keys = ["noise0.0"]
+_data = {key: all_scm_data[key] for key in keys}
+all_plots(_data, "_0.0") 
 
+# 0.25
+keys = ["noise0.0", "noise0.25"]
+_data = {key: all_scm_data[key] for key in keys}
+all_plots(_data, "_0.25") 
 
+# 0.5
+keys = ["noise0.0", "noise0.5"]
+_data = {key: all_scm_data[key] for key in keys}
+all_plots(_data, "_0.5") 
 
+# 0.75
+keys = ["noise0.0", "noise0.75"]
+_data = {key: all_scm_data[key] for key in keys}
+all_plots(_data, "_0.75") 
+
+# 1.0
+keys = ["noise0.0", "noise1.0"]
+_data = {key: all_scm_data[key] for key in keys}
+all_plots(_data, "_1.0") 
 
