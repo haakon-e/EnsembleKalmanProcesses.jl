@@ -34,7 +34,7 @@ function run_SCAMPy(
         scm_data_root::String,
         scm_names::Array{String, 1},
     ) where {FT<:AbstractFloat}
-
+    println("Running SCAMPy...")
     # Check dimensionality
     @assert length(u_names) == length(u)
 
