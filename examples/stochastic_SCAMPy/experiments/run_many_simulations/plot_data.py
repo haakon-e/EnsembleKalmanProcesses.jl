@@ -85,11 +85,11 @@ def read_les_data(les_data):
 
     return data
 
-def get_LES_data(rootpath=Path.cwd()):
-    (rootpath / "plots/output/Bomex/all_variables/").mkdir(parents=True, exist_ok=True)
-    les_data_path = rootpath / "les_data/Bomex.nc"
+def get_LES_data(les_dir=Path.cwd()):
+    # (les_dir / "plots/output/Bomex/all_variables/").mkdir(parents=True, exist_ok=True)
+    les_data_path = les_dir / "Bomex.nc"
     if not les_data_path.is_file():
-        (rootpath / "les_data").mkdir(parents=True, exist_ok=True)
+        les_dir.mkdir(parents=True, exist_ok=True)
         url_ = r"https://drive.google.com/uc?export=download&id=1h8LcxaoBVHqtxwoaynux_3PrUpi_8GfY"
         os.system(f"curl -sLo {les_data_path} '{url_}'")
     les_data = Dataset(les_data_path, 'r')
@@ -126,14 +126,15 @@ def finalize_plot(fig, axs, folder, title):
     # fig.legend()
     axs.flatten()[-1].legend()
     fig.tight_layout()
+    Path(folder).mkdir(exist_ok=True, parents=True)
     fig.savefig(Path(folder) / title)
     fig.clf()
 
-def make_plot(
+def plot_scm(
         axs,
-        scm_data_files, les_data, 
+        scm_data_files, 
         tmin, tmax, 
-        scm_vars, les_vars,
+        scm_vars,
         scm_label,
         color_mean="lightblue", color_realizations="darkblue",
     ):
@@ -148,16 +149,6 @@ def make_plot(
     scm_label                       :: label name for scm mean line
     color_mean, color_realizations  :: line color for mean line and individual realizations
     """
-    
-    # plot LES data
-    t0_les, t1_les = time_bounds(les_data, tmin, tmax)
-    
-    # Plot LES data
-    for ax, var in zip(axs.flatten(), les_vars):
-        ax.plot(
-            np.nanmean(les_data[var][:, t0_les:t1_les], axis=1),
-            les_data["z_half"], '-', color='gray', label='les', lw=3,
-        )
 
     # Process and plot SCM data
     scm_z_half = scm_data_files[0]["z_half"]
@@ -193,80 +184,155 @@ def make_plot(
             color=color_mean, alpha=0.4, 
         )
 
+def plot_les(axs, data, vars, tmin, tmax):
+    # plot LES data
+    t0_les, t1_les = time_bounds(data, tmin, tmax)
+    
+    # Plot LES data
+    for ax, var in zip(axs.flatten(), vars):
+        ax.plot(
+            np.nanmean(data[var][:, t0_les:t1_les], axis=1),
+            data["z_half"], '-', color='gray', label='les', lw=3,
+        )
 
-### GENERATE PLOTS
-folder = Path.cwd() / "results_ensemble_p1_e20_i7"
+class PlottingArgs:
+    def __init__(self, plotdir):
+        self.nrows=1
+        self.ncols=1
+        self.scm_vars = []
+        self.les_vars = []
+        self.labs = []
+        self.title = ""
+        self.plotdir = plotdir
 
-# get all files in folder on the form `Stats.<CaseName>.nc`
-files = Path(folder).glob("Stats.*.nc")
+        self.tmin = 4
+        self.tmax = 6
+        self.zmin = 0.0
+        self.zmax = 2.2
 
-# Read all scm datafiles
-scm_datasets = [read_scm_data(file) for file in files]
+        self.fig = None
+        self.axs = None
+
+class MeansFluxes(PlottingArgs):
+    def __init__(self, plotdir, title_suffix=""):
+        super().__init__(plotdir)
+        self.nrows = 2
+        self.ncols = 2
+        scm_vars = les_vars = [
+            "qt_mean",          "ql_mean",          # qt_mean??
+            "total_flux_h",     "total_flux_qt",
+        ]
+        self.scm_vars = scm_vars
+        self.les_vars = les_vars
+        self.labs = [
+            "mean qt [g/kg]",                                                   "mean ql [g/kg]",
+            r'$ \langle w^* \theta_l^* \rangle  \; [\mathrm{kg K /m^2s}]$',     r'$ \langle w^* q_t^* \rangle  \; [\mathrm{g /m^2s}]$',
+        ]
+        self.title = f"StochasticBomex_means_fluxes{title_suffix}.pdf"
+
+class VarsCovars(PlottingArgs):
+    def __init__(self, plotdir, title_suffix=""):
+        super().__init__(plotdir)
+        self.nrows = 2
+        self.ncols = 2
+        self.scm_vars = [
+            "tke_mean",     "HQTcov_mean",
+            "Hvar_mean",    "QTvar_mean", 
+        ]
+        self.les_vars = [
+            "tke_mean",     "env_HQTcov",
+            "env_Hvar",     "env_QTvar", 
+        ]
+        self.labs = [
+            r'$TKE [\mathrm{m^2/s^2}]$',    "HQTcov",
+            "Hvar",                         "QTvar",
+        ]
+        self.title = f"StochasticBomex_var_covar{title_suffix}.pdf"
+
+class ThirdOrder(PlottingArgs):
+    # Third-order moments
+    def __init__(self, plotdir, title_suffix=""):
+        super().__init__(plotdir)
+        self.nrows = 1
+        self.ncols = 2
+        scm_vars = les_vars = [
+            "H_third_m",    "QT_third_m",
+        ]
+        self.scm_vars = scm_vars
+        self.les_vars = les_vars
+        self.labs = [
+            r'$ \langle \theta_l^*\theta_l^*\theta_l^* \rangle [K^3] $',    r'$ \langle q_t^*q_t^*q_t^* \rangle [g^3/kg^3] $',
+        ]
+        self.title = f"StochasticBomex_third{title_suffix}.pdf"
+
+# Functions using PlottingArgs as args:
+def initialize_plot2(cls: PlottingArgs) -> None: 
+    fig, axs = initialize_plot(cls.nrows, cls.ncols, cls.labs, cls.zmin, cls.zmax)
+    cls.fig = fig
+    cls.axs = axs
+def finalize_plot2(cls: PlottingArgs) -> None: finalize_plot(cls.fig, cls.axs, cls.plotdir, cls.title)
+def plot_scm2(cls: PlottingArgs, data, scm_label, color) -> None: plot_scm(cls.axs, data, cls.tmin, cls.tmax, cls.scm_vars, scm_label, color, color)
+def plot_les2(cls: PlottingArgs, data) -> None: plot_les(cls.axs, data, cls.les_vars, cls.tmin, cls.tmax)
+
+def load_scm_data(scm_folders):
+    data = {}
+    for folder in scm_folders:
+        files = Path(folder).glob("Stats.*.nc") 
+        data[folder.name] = [read_scm_data(file) for file in files]
+    return data
+
+# Folders
+root_folder = Path("/Users/haakon/Documents/CliMA/SEDMF/output/fix_noise2")
+scm_root_folder = root_folder / "scm_data"
+les_folder = root_folder / "les_data"
+plotsdir = root_folder / "plots"
+print(f"Plot creator. Output located within: {root_folder}")
+
+# Load data:
+# (Read in parallel: https://stackoverflow.com/a/38378869)
+print("Loading data...")
+scm_folders = [x for x in scm_root_folder.glob("noise*") if x.is_dir()]
+all_scm_data = load_scm_data(scm_folders)
 
 # get LES data
-les_data = get_LES_data(folder)
+les_data = get_LES_data(les_folder)
 
-# plotting args
-t0 = 4
-t1 = 6
-zmin = 0.0
-zmax = 2.2
-outfolder = folder / "plots/output/"
+# Initialize PlottingArgs objects
+means_fluxes = MeansFluxes(plotsdir, title_suffix="")
+vars_covars = VarsCovars(plotsdir, title_suffix="")
+third = ThirdOrder(plotsdir, title_suffix="")
 
-# Mean variables and flux variables
-mean_flux_scm_vars = mean_flux_les_vars = [
-    "qt_mean",          "ql_mean",          # qt_mean??
-    "total_flux_h",     "total_flux_qt",
-]
-mean_flux_labs = [
-    "mean qt [g/kg]",                                                   "mean ql [g/kg]",
-    r'$ \langle w^* \theta_l^* \rangle  \; [\mathrm{kg K /m^2s}]$',     r'$ \langle w^* q_t^* \rangle  \; [\mathrm{g /m^2s}]$',
-]
-nrows = ncols = 2
-title="StochasticBomex_means_fluxes.pdf"
-scm_label = "scm"
-fig, axs = initialize_plot(nrows, ncols, mean_flux_labs, zmin, zmax)
-make_plot(
-    axs, scm_datasets, les_data, t0, t1, mean_flux_scm_vars, mean_flux_les_vars,
-    scm_label, color_mean="royalblue", color_realizations="darkblue",
-)
-finalize_plot(fig, axs, outfolder, title)
+print("Initializing plots...")
+# Initialize plots
+initialize_plot2(means_fluxes)
+initialize_plot2(vars_covars)
+initialize_plot2(third)
 
-# Variance and covariance terms (+ TKE)
-covar_scm_vars = [
-    "tke_mean",     "HQTcov_mean",
-    "Hvar_mean",    "QTvar_mean", 
-]
-covar_les_vars = [
-    "tke_mean",     "env_HQTcov",
-    "env_Hvar",     "env_QTvar", 
-]
-covar_labs = [
-    r'$TKE [\mathrm{m^2/s^2}]$',    "HQTcov",
-    "Hvar",                         "QTvar",
-]
-nrows = ncols = 2
-title="StochasticBomex_var_covar.pdf"
-fig, axs = initialize_plot(nrows, ncols, covar_labs, zmin, zmax)
-make_plot(
-    axs, scm_datasets, les_data, t0, t1, covar_scm_vars, covar_les_vars,
-    scm_label, color_mean="royalblue", color_realizations="darkblue",
-    )
-finalize_plot(fig, axs, outfolder, title)
+# Plot LES
+plot_les2(means_fluxes, les_data)
+plot_les2(vars_covars, les_data)
+plot_les2(third, les_data)
 
-# Third-order moments
-third_scm_vars = third_scm_vars = [
-    "H_third_m",    "QT_third_m",
-]
-third_labs = [
-    r'$ \langle \theta_l^*\theta_l^*\theta_l^* \rangle [K^3] $',    r'$ \langle q_t^*q_t^*q_t^* \rangle [g^3/kg^3] $',
-]
-nrows = 1 
-ncols = 2
-title="StochasticBomex_third.pdf"
-fig, axs = initialize_plot(nrows, ncols, third_labs, zmin, zmax)
-make_plot(
-    axs, scm_datasets, les_data, t0, t1, third_scm_vars, third_scm_vars, 
-    scm_label, color_mean="royalblue", color_realizations="darkblue",
-    )
-finalize_plot(fig, axs, outfolder, title)
+# colors:  https://colorbrewer2.org/?type=diverging&scheme=Spectral&n=10
+colors = ['#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2']
+
+print("Plotting SCM...")
+# Plot SCM
+for i, key in enumerate(all_scm_data):
+    data = all_scm_data[key]
+
+    scm_label = key[5:]
+    plot_scm2(means_fluxes, data, scm_label, colors[i])
+    plot_scm2(vars_covars, data, scm_label, colors[i])
+    plot_scm2(third, data, scm_label, colors[i])
+
+finalize_plot2(means_fluxes)
+finalize_plot2(vars_covars)
+finalize_plot2(third)
+print("Done!")
+
+
+
+
+
+
