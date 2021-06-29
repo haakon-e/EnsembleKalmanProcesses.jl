@@ -35,13 +35,14 @@ function run_ensemble(sd_param, n_ens)
     @assert length(y_names) == 1  # Only one list of variables considered for our 1 simulation.
 
     # Define directories to look for and store data
-    les_names = ["Bomex"]  # PyCLES case name
+    _case = "Bomex"
+    les_names = [_case]  # PyCLES case name
     les_suffixes = ["may18"]  # PyCLES case suffix
     les_root = "/groups/esm/ilopezgo" 
-    scm_names = ["StochasticBomex"]  # same as `les_names` in perfect model setting
+    scm_names = ["Stochastic$_case"]  # same as `les_names` in perfect model setting
     scm_data_root = pwd()  # path to folder with `Output.<scm_name>.00000` files
 
-    outdir_root = "/groups/esm/hervik/calibration/output/fix1"
+    outdir_root = "/groups/esm/hervik/calibration/output/stochastic_ensembles$(les_names[1])"
 
 
     # # Prior information: Define transform to unconstrained gaussian space
@@ -63,7 +64,7 @@ function run_ensemble(sd_param, n_ens)
     # Define observation window (s)
     (t_starts, t_ends) = (4.0, 6.0) .* 3600  # 4 to 6 hrs
     # Compute data covariance
-    Γy = compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root)
+    Γy = compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root)
 
     #########
     #########  Run ensemble of simulations
@@ -117,7 +118,7 @@ function run_ensemble(sd_param, n_ens)
     println(string("\n\nEKP evaluation 1 finished. \n"))
 end
 
-function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root)
+function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root)
     @assert (  # Each entry in these lists correspond to one simulation case
         length(les_names) == length(les_suffixes) == length(scm_names) 
         == length(y_names) == length(t_starts) == length(t_ends)
