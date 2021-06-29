@@ -123,8 +123,14 @@ end
 
 
 """
-    obs_LES(y_names, sim_dir, ti, tf;
-            z_scm = nothing, normalize = false)
+    obs_LES(
+        y_names::Array{String, 1},
+        sim_dir::String,
+        ti::Float64,
+        tf::Float64;
+        z_scm::Union{Array{Float64, 1}, Nothing} = nothing,
+        normalize = true,
+    )
 
 Get LES output for observed variables y_names, interpolated to
 z_scm (if given), and possibly normalized with respect to the pooled variance.
@@ -137,16 +143,19 @@ Inputs:
  - z_scm :: If given, interpolate LES observations to given levels.
  - normalize :: If true, normalize observations and cov matrix by pooled variances.
 Outputs:
- - y_ :: Mean of observations, possibly interpolated to z_scm levels.
+ - y_ :: Mean profile of observations, possibly interpolated to z_scm levels.
  - y_tvar :: Observational covariance matrix, possibly pool-normalized.
+ - poolvar_vec :: Vector of vertically averaged time-variances
+                  of the variables
 """
-function obs_LES(y_names::Array{String, 1},
-                    sim_dir::String,
-                    ti::Float64,
-                    tf::Float64;
-                    z_scm::Union{Array{Float64, 1}, Nothing} = nothing,
-                    normalize = true,
-                    ) where {FT<:AbstractFloat}
+function obs_LES(
+        y_names::Array{String, 1},
+        sim_dir::String,
+        ti::Float64,
+        tf::Float64;
+        z_scm::Union{Array{Float64, 1}, Nothing} = nothing,
+        normalize = true,
+    )
     
     y_names_les = get_les_names(y_names, sim_dir)
     y_tvar, poolvar_vec = get_time_covariance(sim_dir, y_names_les,
@@ -299,38 +308,51 @@ function normalize_profile(profile_vec, var_name, var_vec)
 end
 
 """
-    get_time_covariance(sim_dir::String,
-                     var_name::Array{String,1};
-                     ti::Float64=0.0,
-                     tf=0.0,
-                     getFullHeights=false,
-                     z_scm::Union{Array{Float64, 1}, Nothing} = nothing,
-                     normalize=false)
+    get_time_covariance(
+        sim_dir::String,
+        var_name::Array{String,1};
+        ti::Float64=0.0,
+        tf=0.0,
+        getFullHeights=false,
+        z_scm::Union{Array{Float64, 1}, Nothing} = nothing,
+        normalize=false,
+    )
 
-Obtain the covariance matrix of a group of profiles, where the covariance
-is obtained in time.
+Obtain the covariance matrix of a group of profiles, 
+where the covariance is obtained in time.
+
 Inputs:
  - sim_dir :: Name of simulation directory.
  - var_name :: List of variable names to be included.
  - ti, tf :: Initial and final times defining averaging interval.
  - z_scm :: If given, interpolates covariance matrix to this locations.
  - normalize :: Boolean specifying variable normalization.
+Outputs:
+- cov_mat :: covariance using timeseries of all variables at 
+            each vertical level.
+- poolvar_vec :: Vector of vertically averaged time-variances
+            of the variables
 """
-function get_time_covariance(sim_dir::String,
-                     var_name::Array{String,1};
-                     ti::Float64=0.0,
-                     tf=0.0,
-                     getFullHeights=false,
-                     z_scm::Union{Array{Float64, 1}, Nothing} = nothing,
-                     normalize=false)
-
+function get_time_covariance(
+        sim_dir::String,
+        var_name::Array{String,1};
+        ti::Float64=0.0,
+        tf=0.0,
+        getFullHeights=false,
+        z_scm::Union{Array{Float64, 1}, Nothing} = nothing,
+        normalize=false,
+    )
     t = nc_fetch(sim_dir, "timeseries", "t")
-    dt = t[2]-t[1]
     # Find closest interval in data
-    ti_diff, ti_index = findmin( broadcast(abs, t.-ti) )
-    tf_diff, tf_index = findmin( broadcast(abs, t.-tf) )
-    ts_vec = zeros(0, length(ti_index:tf_index))
+    ti_index = argmin( broadcast(abs, t.-ti) )
+    tf_index = argmin( broadcast(abs, t.-tf) )
+    t_inds = ti_index:tf_index
+    
+    Nt = length(t_inds)
     num_outputs = length(var_name)
+
+    # initialize output vectors
+    ts_vec = zeros(0, Nt)
     poolvar_vec = zeros(num_outputs)
 
     for i in 1:num_outputs
@@ -341,22 +363,26 @@ function get_time_covariance(sim_dir::String,
             var_ = var_.*rho_half
         end
         # Store pooled variance
-        poolvar_vec[i] = mean(var(var_[:, ti_index:tf_index], dims=2))
-        ts_var_i = normalize ? var_[:, ti_index:tf_index]./ sqrt(poolvar_vec[i]) : var_[:, ti_index:tf_index]
+        poolvar_vec[i] = mean(var(var_[:, t_inds], dims=2))  # vertically averaged time-variance of variable
+        ts_var_i = normalize ? var_[:, t_inds]./ sqrt(poolvar_vec[i]) : var_[:, t_inds]
         # Interpolate in space
         if !isnothing(z_scm)
-            z_les = getFullHeights ? get_profile(sim_dir, ["z"]) : get_profile(sim_dir, ["z_half"])
+            z_les = get_profile(sim_dir, [getFullHeights ? "z" : "z_half"])
             # Create interpolant
-            ts_var_i_itp = interpolate( (z_les, 1:tf_index-ti_index+1),
-                                        ts_var_i, ( Gridded(Linear()), NoInterp() ))
+            ts_var_i_itp = interpolate( 
+                (z_les, 1:Nt),
+                ts_var_i, 
+                ( Gridded(Linear()), NoInterp() ),
+            )
             # Interpolate
-            ts_var_i = ts_var_i_itp(z_scm, 1:tf_index-ti_index+1)
+            ts_var_i = ts_var_i_itp(z_scm, 1:Nt)
         end
-        ts_vec = cat(ts_vec, ts_var_i, dims=1)
+        ts_vec = cat(ts_vec, ts_var_i, dims=1)  # dims: (Nz*num_outputs, Nt)
     end
-    cov_mat = cov(ts_vec, dims=2)
+    cov_mat = cov(ts_vec, dims=2)  # covariance, w/ samples across time dimension (t_inds).
     return cov_mat, poolvar_vec
 end
+
 
 function get_les_names(scm_y_names::Array{String,1}, sim_dir::String)
     y_names = deepcopy(scm_y_names)

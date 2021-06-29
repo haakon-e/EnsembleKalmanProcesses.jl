@@ -1,6 +1,7 @@
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
+BlockDiagonals = "0a1fb500-61f7-11e9-3c65-f5ef3456f9f0"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 EnsembleKalmanProcesses = "aa8a2aa5-91d8-4396-bcef-d4f2ec43552d"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
