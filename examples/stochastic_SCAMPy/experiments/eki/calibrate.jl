@@ -204,7 +204,3 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
     
     return Γy, pool_var_list, yt
 end
-
-
-### RUN SIMULATION ###
-run_calibrate()
