@@ -79,7 +79,8 @@ function run_ensemble(sd_param, n_ens)
 
     # Define caller function
     @everywhere g_(x::Array{Float64,1}) = run_SCAMPy(
-            x, $param_names, $scampy_dir, $scm_data_root, $scm_names
+            x, $param_names, $scampy_dir, $scm_data_root, $scm_names,
+            $y_names, $t_starts, $t_ends,
         )
 
     # Create output dir
@@ -101,7 +102,7 @@ function run_ensemble(sd_param, n_ens)
         on_error=ex->nothing,  # ignore errors
         ) # Outer dim is params iterator
     ##
-    (sim_dirs_ens,) = ntuple(l->getindex.(array_of_tuples,l),1) # Outer dim is G̃, G 
+    (sim_dirs_ens, _) = ntuple(l->getindex.(array_of_tuples,l),2) # Outer dim is G̃, G 
     sim_dirs_ens_ = filter(x -> !isnothing(x), sim_dirs_ens)  # pmap-error handling
 
     # get a simulation directory `.../Output.SimName.UUID`, and corresponding parameter name

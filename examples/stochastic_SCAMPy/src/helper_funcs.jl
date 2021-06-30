@@ -33,20 +33,34 @@ function run_SCAMPy(
         scampy_dir::String,
         scm_data_root::String,
         scm_names::Array{String, 1},
+        y_names::Array{Array{String,1},1},
+        t_starts::Array{FT,1},
+        t_ends::Array{FT,1};
+        norm_var_list = nothing,
     ) where {FT<:AbstractFloat}
     println("Running SCAMPy...")
     # Check dimensionality
     @assert length(u_names) == length(u)
+    @assert ti isa Array{FT,1} # 1 interval per simulation
 
     # run SCAMPy and get simulation dirs
     sim_dirs = run_SCAMPy_handler(u, u_names, scampy_dir, scm_names, scm_data_root)
 
-    ## TODO :: Get loss function output
-    # ...
-    # ...
-    ##
+    g_scm = zeros(0)
+    for (sim_dir, t_start, t_end, y_name, norm_var, ) in zip(sim_dirs, t_starts, t_ends, y_names, norm_var_list)
+        # PS: a sim_dir = a SCAMPy case, e.g. StochasticBomex, or StochasticTRMM_LBA
+        g_scm_flow = get_profile(sim_dir, y_name, ti = t_start, tf = t_end)
+        if !isnothing(norm_var_list)
+            g_scm_flow = normalize_profile(g_scm_flow, y_name, norm_var)
+        end
+        append!(g_scm, g_scm_flow)
+    end
+    # penalize nan-values in output
+    for i in eachindex(g_scm)
+        g_scm[i] = isnan(g_scm[i]) ? 1.0e5 : g_scm[i]
+    end
 
-    return sim_dirs
+    return sim_dirs, g_scm
 end
 
 
