@@ -35,14 +35,15 @@ function run_ensemble(sd_param, n_ens)
     @assert length(y_names) == 1  # Only one list of variables considered for our 1 simulation.
 
     # Define directories to look for and store data
-    _case = "Bomex"
+    _case = "StochasticRico"
     les_names = [_case]  # PyCLES case name
-    les_suffixes = ["may18"]  # PyCLES case suffix
-    les_root = "/groups/esm/ilopezgo" 
-    scm_names = ["Stochastic$_case"]  # same as `les_names` in perfect model setting
-    scm_data_root = pwd()  # path to folder with `Output.<scm_name>.00000` files
+    les_suffixes = ["00000"]  # ["may18"]  # PyCLES case suffix
+    les_root = "/groups/esm/hervik/calibration/SCAMPy/stochasticcases"
+    # les_root = "/groups/esm/ilopezgo" 
+    scm_names = les_names  # ["Stochastic$_case"]  # same as `les_names` in perfect model setting
+    scm_data_root = les_root  #pwd()  # path to folder with `Output.<scm_name>.00000` files
 
-    outdir_root = "/groups/esm/hervik/calibration/output/stochastic_ensembles$(les_names[1])"
+    outdir_root = "/groups/esm/hervik/calibration/output/stochastic_ensembles/$(les_names[1])"
 
 
     # # Prior information: Define transform to unconstrained gaussian space
@@ -57,14 +58,14 @@ function run_ensemble(sd_param, n_ens)
     ## Set known parameter
     priors = ParameterDistribution(
         repeat([Samples([sd_param])], n_param), 
-        repeat([no_constraint()], n_param),
+	repeat([[no_constraint()]], n_param),
         param_names,
     )
 
     # Define observation window (s)
     (t_starts, t_ends) = (4.0, 6.0) .* 3600  # 4 to 6 hrs
     # Compute data covariance
-    Γy = compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root)
+    #Γy = compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root)
 
     #########
     #########  Run ensemble of simulations
@@ -74,7 +75,7 @@ function run_ensemble(sd_param, n_ens)
     println("NUMBER OF ENSEMBLE MEMBERS: $n_ens")
 
     initial_params = construct_initial_ensemble(priors, n_ens, rng_seed=rand(1:1000))
-    ekobj = EnsembleKalmanProcess(initial_params, yt, Γy, algo)
+    #ekobj = EnsembleKalmanProcess(initial_params, yt, Γy, algo)
     scampy_dir = "/groups/esm/hervik/calibration/SCAMPy"  # path to SCAMPy
 
     # Define caller function
@@ -84,17 +85,18 @@ function run_ensemble(sd_param, n_ens)
         )
 
     # Create output dir
-    outdir_path = joinpath(outdir_root, "noise$(variance_param)")
+    outdir_path = joinpath(outdir_root, "noise$(sd_param)")
     println("Name of outdir path for this EKP is: $outdir_path")
     mkpath(outdir_path)
 
     # Note that the parameters are transformed when used as input to SCAMPy
-    params_cons_i = deepcopy(
-        transform_unconstrained_to_constrained(
-            priors, get_u_final(ekobj)
-        )
-    )
-    params = [row[:] for row in eachrow(params_cons_i')]
+    # params_cons_i = deepcopy(
+    #     transform_unconstrained_to_constrained(
+    #         priors, get_u_final(ekobj)
+    #     )
+    # )
+    # params = [row[:] for row in eachrow(params_cons_i')]
+    params = [row[:] for row in eachrow(initial_params')]
     @everywhere params = $params
     ## Run one ensemble forward map (in parallel)
     array_of_tuples = pmap(

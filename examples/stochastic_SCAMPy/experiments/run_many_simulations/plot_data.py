@@ -214,7 +214,7 @@ class PlottingArgs:
         self.axs = None
 
 class MeansFluxes(PlottingArgs):
-    def __init__(self, plotdir, title_suffix=""):
+    def __init__(self, plotdir, title_prefix="output", title_suffix=""):
         super().__init__(plotdir)
         self.nrows = 2
         self.ncols = 2
@@ -228,10 +228,10 @@ class MeansFluxes(PlottingArgs):
             "mean qt [g/kg]",                                                   "mean ql [g/kg]",
             r'$ \langle w^* \theta_l^* \rangle  \; [\mathrm{kg K /m^2s}]$',     r'$ \langle w^* q_t^* \rangle  \; [\mathrm{g /m^2s}]$',
         ]
-        self.title = f"StochasticBomex_means_fluxes{title_suffix}.pdf"
+        self.title = f"{title_prefix}_means_fluxes{title_suffix}.pdf"
 
 class VarsCovars(PlottingArgs):
-    def __init__(self, plotdir, title_suffix=""):
+    def __init__(self, plotdir, title_prefix="output", title_suffix=""):
         super().__init__(plotdir)
         self.nrows = 2
         self.ncols = 2
@@ -247,11 +247,11 @@ class VarsCovars(PlottingArgs):
             r'$TKE [\mathrm{m^2/s^2}]$',    "HQTcov",
             "Hvar",                         "QTvar",
         ]
-        self.title = f"StochasticBomex_var_covar{title_suffix}.pdf"
+        self.title = f"{title_prefix}_var_covar{title_suffix}.pdf"
 
 class ThirdOrder(PlottingArgs):
     # Third-order moments
-    def __init__(self, plotdir, title_suffix=""):
+    def __init__(self, plotdir, title_prefix="output", title_suffix=""):
         super().__init__(plotdir)
         self.nrows = 1
         self.ncols = 2
@@ -263,7 +263,7 @@ class ThirdOrder(PlottingArgs):
         self.labs = [
             r'$ \langle \theta_l^*\theta_l^*\theta_l^* \rangle [K^3] $',    r'$ \langle q_t^*q_t^*q_t^* \rangle [g^3/kg^3] $',
         ]
-        self.title = f"StochasticBomex_third{title_suffix}.pdf"
+        self.title = f"{title_prefix}_third{title_suffix}.pdf"
 
 # Functions using PlottingArgs as args:
 def initialize_plot2(cls: PlottingArgs) -> None: 
@@ -283,7 +283,8 @@ def load_scm_data(scm_folders):
 
 # Folders
 # root_folder = Path("/Users/haakon/Documents/CliMA/SEDMF/output/fix_noise2")
-root_folder = Path("/central/groups/esm/hervik/calibration/output/fix1")
+scm_name = "StochasticRico"
+root_folder = Path(f"/central/groups/esm/hervik/calibration/output/stochastic_ensembles/{scm_name}")
 scm_root_folder = root_folder / "scm_data"
 les_folder = root_folder / "les_data"
 plotsdir = root_folder / "plots"
@@ -300,9 +301,9 @@ les_data = get_LES_data(les_folder)
 
 def all_plots(scm_data, suffix=""):
 	# Initialize PlottingArgs objects
-	means_fluxes = MeansFluxes(plotsdir, title_suffix=suffix)
-	vars_covars = VarsCovars(plotsdir, title_suffix=suffix)
-	third = ThirdOrder(plotsdir, title_suffix=suffix)
+	means_fluxes = MeansFluxes(plotsdir, title_prefix=scm_name, title_suffix=suffix)
+	vars_covars = VarsCovars(plotsdir, title_prefix=scm_name, title_suffix=suffix)
+	third = ThirdOrder(plotsdir, title_prefix=scm_name, title_suffix=suffix)
 
 	print("Initializing plots...")
 	# Initialize plots
@@ -339,26 +340,27 @@ all_plots(all_scm_data, "_all")
 
 # 0.0
 keys = ["noise0.0"]
-_data = {key: all_scm_data[key] for key in keys}
-all_plots(_data, "_0.0") 
+_data = {key: all_scm_data[key] for key in keys if key in all_scm_data}
+all_plots(_data, "_0.0") if set(keys).issubset(_data) else None
 
 # 0.25
 keys = ["noise0.0", "noise0.25"]
-_data = {key: all_scm_data[key] for key in keys}
-all_plots(_data, "_0.25") 
+_data = {key: all_scm_data[key] for key in keys if key in all_scm_data}
+all_plots(_data, "_0.25") if set(keys).issubset(_data) else None
 
 # 0.5
 keys = ["noise0.0", "noise0.5"]
-_data = {key: all_scm_data[key] for key in keys}
-all_plots(_data, "_0.5") 
+_data = {key: all_scm_data[key] for key in keys if key in all_scm_data}
+all_plots(_data, "_0.5") if set(keys).issubset(_data) else None
+
 
 # 0.75
 keys = ["noise0.0", "noise0.75"]
-_data = {key: all_scm_data[key] for key in keys}
-all_plots(_data, "_0.75") 
+_data = {key: all_scm_data[key] for key in keys if key in all_scm_data}
+all_plots(_data, "_0.75") if set(keys).issubset(_data) else None
 
 # 1.0
 keys = ["noise0.0", "noise1.0"]
-_data = {key: all_scm_data[key] for key in keys}
-all_plots(_data, "_1.0") 
+_data = {key: all_scm_data[key] for key in keys if key in all_scm_data}
+all_plots(_data, "_1.0") if set(keys).issubset(_data) else None
 

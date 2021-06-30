@@ -50,17 +50,17 @@ function run_calibrate()
     les_names = ["Bomex"]
     les_suffixes = ["may18"]
     les_root = "/groups/esm/ilopezgo"
-    scm_names = ["Bomex"]  # same as `les_names` in perfect model setting
+    scm_names = ["StochasticBomex"]  # same as `les_names` in perfect model setting
     scm_data_root = pwd()  # path to folder with `Output.<scm_name>.00000` files
-    scampy_dir = "SCAMPy/"  # path to SCAMPy
+    scampy_dir = "/groups/esm/hervik/calibration/SCAMPy"  # path to SCAMPy
 
-    outdir_root = "/groups/esm/hervik/calibration/output/fix1"
+    outdir_root = "/groups/esm/hervik/calibration/output/eki_bomex"
 
     # Define observation window (s)
     (t_starts, t_ends) = (4.0, 6.0) .* 3600  # 4 to 6 hrs
     # Compute data covariance
     Γy, pool_var_list, yt = compute_data_covariance(
-        les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root
+        les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root
     )
 
     #########
@@ -69,7 +69,7 @@ function run_calibrate()
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
     N_ens = 20 # number of ensemble members
-    N_iter = 10 # number of EKP iterations.
+    N_iter = 2 # number of EKP iterations.
     Δt = 1.0 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
     println("NUMBER OF ITERATIONS: $N_iter")
@@ -162,12 +162,13 @@ function run_calibrate()
         # get a simulation directory `.../Output.SimName.UUID`, and corresponding parameter name
         for (ens_i, sim_dir) in enumerate(sim_dirs_arr)  # each ensemble returns a list of simulation directories
             for scm_name in scm_names
-            # Copy simulation data to output directory
-            dirname = splitpath(sim_dir)[end]
-            @assert dirname[1:7] == "Output."  # sanity check
-            tmp_data_path = joinpath(sim_dir, "stats/Stats.$scm_name.nc")
-            save_data_path = joinpath(eki_iter_path, "Stats.$scm_name.$ens_i.nc")
-            run(`cp $tmp_data_path $save_data_path`)
+                # Copy simulation data to output directory
+                dirname = splitpath(sim_dir)[end]
+                @assert dirname[1:7] == "Output."  # sanity check
+                tmp_data_path = joinpath(sim_dir, "stats/Stats.$scm_name.nc")
+                save_data_path = joinpath(eki_iter_path, "Stats.$scm_name.$ens_i.nc")
+                run(`cp $tmp_data_path $save_data_path`)
+            end
         end
     end
 
@@ -176,7 +177,8 @@ function run_calibrate()
     println( mean( transform_unconstrained_to_constrained(priors, get_u_final(ekobj)), dims=2) ) # Parameters are stored as columns
 end
 
-function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root)
+
+function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root)
     @assert (  # Each entry in these lists correspond to one simulation case
         length(les_names) == length(les_suffixes) == length(scm_names) 
         == length(y_names) == length(t_starts) == length(t_ends)
@@ -204,3 +206,4 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
     
     return Γy, pool_var_list, yt
 end
+
