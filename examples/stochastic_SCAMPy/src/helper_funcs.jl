@@ -41,7 +41,7 @@ function run_SCAMPy(
     println("Running SCAMPy...")
     # Check dimensionality
     @assert length(u_names) == length(u)
-    @assert ti isa Array{FT,1} # 1 interval per simulation
+    @assert t_starts isa Array{FT,1} # 1 interval per simulation
 
     # run SCAMPy and get simulation dirs
     sim_dirs = run_SCAMPy_handler(u, u_names, scampy_dir, scm_names, scm_data_root)

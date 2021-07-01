@@ -57,19 +57,20 @@ function run_calibrate()
     outdir_root = "/groups/esm/hervik/calibration/output/eki_bomex"
 
     # Define observation window (s)
-    (t_starts, t_ends) = (4.0, 6.0) .* 3600  # 4 to 6 hrs
+    (t_starts, t_ends) = [[4.0], [6.0]] .* 3600  # 4 to 6 hrs
     # Compute data covariance
     Γy, pool_var_list, yt = compute_data_covariance(
         les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root
     )
+    d = length(yt)
 
     #########
     #########  Calibrate: Ensemble Kalman Inversion
     #########
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
-    N_ens = 20 # number of ensemble members
-    N_iter = 2 # number of EKP iterations.
+    N_ens = 10 # number of ensemble members
+    N_iter = 3 # number of EKP iterations.
     Δt = 1.0 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
     println("NUMBER OF ITERATIONS: $N_iter")
@@ -185,7 +186,7 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
     )
     # Init arrays
     yt = zeros(0)
-    yt_var_list = []
+    yt_var_list = Array{Float64, 2}[]
     pool_var_list = []  # pooled variance (see `get_time_covariance` in `helper_funcs.jl`)
 
     for (les_name, les_suffix, scm_name, y_name, tstart, tend) in zip(
@@ -201,9 +202,17 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
         push!(yt_var_list, yt_var_)
     end
     
+    for yt_var in yt_var_list
+	    println("\ncov mat:\n")
+	    println(yt_var)
+	    @assert isposdef(yt_var)
+    end
     # Construct global observational covariance matrix, TSVD
-    Γy = BlockDiagonal(yt_var_list)
-    
+    Γy = Matrix(BlockDiagonal(yt_var_list))
+    println("eigenvalues of Γy:")
+    println(eigvals(Γy))
+    @assert isposdef(Γy)  # Γy is covariance matrix iff it is positive semi-definite (this check positive definitess)
+
     return Γy, pool_var_list, yt
 end
 
