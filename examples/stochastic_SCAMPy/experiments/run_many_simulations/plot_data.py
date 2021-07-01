@@ -85,15 +85,28 @@ def read_les_data(les_data):
 
     return data
 
-def get_LES_data(les_dir=Path.cwd()):
-    # (les_dir / "plots/output/Bomex/all_variables/").mkdir(parents=True, exist_ok=True)
-    les_data_path = les_dir / "Bomex.nc"
+def get_LES_data(case, les_dir=Path.cwd()):
+    les_data_path = les_dir / f"{case}.nc"
     if not les_data_path.is_file():
         les_dir.mkdir(parents=True, exist_ok=True)
-        url_ = r"https://drive.google.com/uc?export=download&id=1h8LcxaoBVHqtxwoaynux_3PrUpi_8GfY"
+        url_ = LES_data_url(case) 
         os.system(f"curl -sLo {les_data_path} '{url_}'")
     les_data = Dataset(les_data_path, 'r')
     return read_les_data(les_data)
+
+def LES_data_url(case):
+	urls = {
+		"ARM_SGP": r"https://drive.google.com/uc?export=download&id=1l5RT0Xiai320N1U-QJ5JtCcFLJPfaLUW",
+		"Bomex": r"https://drive.google.com/uc?export=download&id=1h8LcxaoBVHqtxwoaynux_3PrUpi_8GfY",
+		"DYCOMS_RF01": r"https://drive.google.com/uc?export=download&id=1qBpJRVZsaQeJLuBEUwzLDv0aNlZsBaEq",
+		"Gabls": r"https://drive.google.com/uc?export=download&id=1gSyyz4Jx0JqaeO7gHaD9--uOD_tamvYA",
+		"Nieuwstadt": r"https://drive.google.com/uc?export=download&id=1YLk80OuZSI0o-jeCxXgSBAF2PfSK6SRY",
+		"Rico": r"https://drive.google.com/uc?export=download&id=1Wyt8S1I7cNYYP3e-edSgXDTRpBrkwo1t",
+		"Soares": r"https://drive.google.com/uc?export=download&id=1D6DKEGnIFeH9G4y77_BhhZNq1edC9gat",
+		"life_cycle_Tan2018": r"https://drive.google.com/uc?export=download&id=1h8LcxaoBVHqtxwoaynux_3PrUpi_8GfY",  # same as Bomex
+		"TRMM_LBA": r"https://drive.google.com/uc?export=download&id=1wMQ_Q0kgXYyj4NEnz8cxAlIuZWrMMZRP"
+	}
+	return urls[case]
 
 def time_bounds(data, tmin, tmax):
     """Get index of time bounds for scm/les data """
@@ -283,7 +296,8 @@ def load_scm_data(scm_folders):
 
 # Folders
 # root_folder = Path("/Users/haakon/Documents/CliMA/SEDMF/output/fix_noise2")
-scm_name = "StochasticRico"
+case = "TRMM_LBA"  # used to fetch correct LES data
+scm_name = f"Stochastic{case}"
 root_folder = Path(f"/central/groups/esm/hervik/calibration/output/stochastic_ensembles/{scm_name}")
 scm_root_folder = root_folder / "scm_data"
 les_folder = root_folder / "les_data"
@@ -297,7 +311,7 @@ scm_folders = [x for x in scm_root_folder.glob("noise*") if x.is_dir()]
 all_scm_data = load_scm_data(scm_folders)
 
 # get LES data
-les_data = get_LES_data(les_folder)
+les_data = get_LES_data(case, les_folder)
 
 def all_plots(scm_data, suffix=""):
 	# Initialize PlottingArgs objects

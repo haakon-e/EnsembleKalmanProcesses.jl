@@ -6,7 +6,7 @@
 #SBATCH --mem-per-cpu=16G   # memory per CPU core
 #SBATCH --ntasks=1  # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
-#SBATCH -J "ensemble_plot"   # job name
+#SBATCH -J "plot_ensembles"   # job name
 
 source ~/miniconda3/bin/activate stats
 python plot_data.py
