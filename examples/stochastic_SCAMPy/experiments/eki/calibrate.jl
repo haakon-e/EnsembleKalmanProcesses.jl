@@ -33,8 +33,8 @@ function run_calibrate()
     n_param = length(param_names)
 
     # Prior information: Define transform to unconstrained gaussian space
-    constraints = [[bounded(0.01, 1.0)],
-                [bounded(0.01, 1.0)],]
+    constraints = [[bounded(0.01, 1.4)],
+                [bounded(0.01, 1.4)],]
     # All vars are standard Gaussians in unconstrained space
     prior_dist = [Parameterized(Normal(0.5, 1.0)),
                 Parameterized(Normal(0.5, 1.0)),]
@@ -69,8 +69,8 @@ function run_calibrate()
     #########
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
-    N_ens = 10 # number of ensemble members
-    N_iter = 3 # number of EKP iterations.
+    N_ens = 40 # number of ensemble members
+    N_iter = 10 # number of EKP iterations.
     Δt = 1.0 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
     println("NUMBER OF ITERATIONS: $N_iter")
@@ -161,8 +161,8 @@ function run_calibrate()
         eki_iter_path = joinpath(outdir_path, "EKI_iter_$i")
         mkpath(eki_iter_path)
         # get a simulation directory `.../Output.SimName.UUID`, and corresponding parameter name
-        for (ens_i, sim_dir) in enumerate(sim_dirs_arr)  # each ensemble returns a list of simulation directories
-            for scm_name in scm_names
+        for (ens_i, sim_dirs) in enumerate(sim_dirs_arr)  # each ensemble returns a list of simulation directories
+	    for (scm_name, sim_dir) in zip(scm_names, sim_dirs)
                 # Copy simulation data to output directory
                 dirname = splitpath(sim_dir)[end]
                 @assert dirname[1:7] == "Output."  # sanity check
@@ -201,16 +201,8 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
         append!(yt, yt_)
         push!(yt_var_list, yt_var_)
     end
-    
-    for yt_var in yt_var_list
-	    println("\ncov mat:\n")
-	    println(yt_var)
-	    @assert isposdef(yt_var)
-    end
     # Construct global observational covariance matrix, TSVD
-    Γy = Matrix(BlockDiagonal(yt_var_list))
-    println("eigenvalues of Γy:")
-    println(eigvals(Γy))
+    Γy = Matrix(BlockDiagonal(yt_var_list)) + 1e-3I
     @assert isposdef(Γy)  # Γy is covariance matrix iff it is positive semi-definite (this check positive definitess)
 
     return Γy, pool_var_list, yt

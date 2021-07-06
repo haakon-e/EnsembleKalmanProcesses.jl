@@ -2,7 +2,7 @@
 
 #Submit this script with: sbatch job_script_name
 
-#SBATCH --time=2:00:00   # walltime
+#SBATCH --time=12:00:00   # walltime
 #SBATCH --ntasks=20  # number of processor cores (i.e. tasks)
 #SBATCH --nodes=1   # number of nodes
 #SBATCH -J "eki_stochastic"   # job name
