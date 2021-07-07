@@ -46,6 +46,9 @@ function run_calibrate()
     push!(y_names, loss_params)
     @assert length(y_names) == 1  # Only one list of variables considered for our 1 simulation.
 
+    # Define preconditioning and regularization of inverse problem
+    perform_PCA = true # Performs PCA on data
+
     # Define name of PyCLES simulations to learn from
     les_names = ["Bomex"]
     les_suffixes = ["may18"]
@@ -59,7 +62,7 @@ function run_calibrate()
     # Define observation window (s)
     (t_starts, t_ends) = [[4.0], [6.0]] .* 3600  # 4 to 6 hrs
     # Compute data covariance
-    Γy, pool_var_list, yt = compute_data_covariance(
+    Γy, pool_var_list, yt, yt_big, P_pca_list, yt_var_big = compute_data_covariance(
         les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root
     )
     d = length(yt)
@@ -83,7 +86,7 @@ function run_calibrate()
         x, $param_names, $scampy_dir, 
         $scm_data_root, $scm_names, $y_names, 
         $t_starts, $t_ends, 
-        norm_var_list = $pool_var_list,
+        P_pca_list = $P_pca_list, norm_var_list = $pool_var_list,
     )
 
     # Create output dir
@@ -108,13 +111,17 @@ function run_calibrate()
             g_, params,
             # on_error=ex->nothing,  # ignore errors
         ) # Outer dim is params iterator
-        (sim_dirs_arr, g_ens_arr) = ntuple(l->getindex.(array_of_tuples,l),2) # Outer dim is G̃, G 
+        (sim_dirs_arr, g_ens_arr, g_ens_arr_pca) = ntuple(l->getindex.(array_of_tuples,l),3) # Outer dim is G̃, G 
         println(string("\n\nEKP evaluation $i finished. Updating ensemble ...\n"))
         for j in 1:N_ens
-            g_ens[j, :] = g_ens_arr[j]
-          end
+            if perform_PCA
+                g_ens[j, :] = g_ens_arr_pca[j]
+            else
+                g_ens[j, :] = g_ens_arr[j]
+            end
+        end
         # Get normalized error for full dimensionality output
-        push!(norm_err_list, compute_errors(g_ens_arr, yt))
+        push!(norm_err_list, compute_errors(g_ens_arr, yt_big))
         # Store full dimensionality output
         push!(g_big_list, g_ens_arr)
         # Get normalized error
@@ -138,25 +145,38 @@ function run_calibrate()
             "truth_mean", ekobj.obs_mean,
             "truth_cov", ekobj.obs_noise_cov,
             "ekp_err", ekobj.err,
+            "truth_mean_big", yt_big,
+            "truth_cov_big", yt_var_big,
             "g_big", g_big_list,
             "norm_err", norm_err_list,
+            "P_pca", P_pca_list,
             "pool_var", pool_var_list,
             "phi_params", phi_params_arr,
             )
         # Convert to arrays
         phi_params = Array{Array{Float64,2},1}(transform_unconstrained_to_constrained(priors, get_u(ekobj)))
         phi_params_arr = zeros(i+1, n_param, N_ens)
+        g_big_arr = zeros(i, N_ens, length(yt_big))
         for (k,elem) in enumerate(phi_params)
             phi_params_arr[k,:,:] = elem
+            if k < i + 1
+                g_big_arr[k,:,:] = hcat(g_big_list[k]...)'
+            end
         end
         norm_err_arr = hcat(norm_err_list...)' # N_iter, N_ens
         # Or you can also save information to numpy files with NPZ
-        npzwrite(string(outdir_path,"/y_mean.npy"), ekobj.obs_mean)
-        npzwrite(string(outdir_path,"/Gamma_y.npy"), ekobj.obs_noise_cov)
-        npzwrite(string(outdir_path,"/ekp_err.npy"), ekobj.err)
-        npzwrite(string(outdir_path,"/phi_params.npy"), phi_params_arr)
-        npzwrite(string(outdir_path,"/norm_err.npy"), norm_err_arr)
-
+        npzwrite(joinpath(outdir_path,"y_mean.npy"), ekobj.obs_mean)
+        npzwrite(joinpath(outdir_path,"Gamma_y.npy"), ekobj.obs_noise_cov)
+        npzwrite(joinpath(outdir_path,"ekp_err.npy"), ekobj.err)
+        npzwrite(joinpath(outdir_path,"phi_params.npy"), phi_params_arr)
+        npzwrite(joinpath(outdir_path,"y_mean_big.npy"), yt_big)
+        npzwrite(joinpath(outdir_path,"Gamma_y_big.npy"), yt_var_big)
+        npzwrite(joinpath(outdir_path,"norm_err.npy"), norm_err_arr)
+        npzwrite(joinpath(outdir_path,"g_big.npy"), g_big_arr)
+        for (l, P_pca) in enumerate(P_pca_list)
+            npzwrite(joinpath(outdir_path,"P_pca_$(scm_names[l]).npy"), P_pca)
+            npzwrite(joinpath(outdir_path,"pool_var_$(scm_names[l]).npy"), pool_var_list[l])
+        end
         # Save full EDMF data from every ensemble
         eki_iter_path = joinpath(outdir_path, "EKI_iter_$i")
         mkpath(eki_iter_path)
@@ -187,6 +207,9 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
     # Init arrays
     yt = zeros(0)
     yt_var_list = Array{Float64, 2}[]
+    yt_big = zeros(0)
+    yt_var_list_big = Array{Float64, 2}[]
+    P_pca_list = []
     pool_var_list = []  # pooled variance (see `get_time_covariance` in `helper_funcs.jl`)
 
     for (les_name, les_suffix, scm_name, y_name, tstart, tend) in zip(
@@ -197,14 +220,27 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
         # Get (interpolated and pool-normalized) observations, get pool variance vector
         les_dir = joinpath(les_root, "Output.$les_name.$les_suffix")
         yt_, yt_var_, pool_var = obs_LES(y_name, les_dir, tstart, tend, z_scm = z_scm)
-        push!(pool_var_list, pool_var)
-        append!(yt, yt_)
-        push!(yt_var_list, yt_var_)
+        if perform_PCA
+            yt_pca, yt_var_pca, P_pca = obs_PCA(yt_, yt_var_)
+            append!(yt, yt_pca)
+            push!(yt_var_list, yt_var_pca)
+            push!(P_pca_list, P_pca)
+        else
+            push!(pool_var_list, pool_var)
+            append!(yt, yt_)
+            push!(yt_var_list, yt_var_)
+            global P_pca_list = nothing
+        end
+        # Save full dimensionality (normalized) output for error computation
+        append!(yt_big, yt_)
+        push!(yt_var_list_big, yt_var_)
     end
     # Construct global observational covariance matrix, TSVD
     Γy = Matrix(BlockDiagonal(yt_var_list)) + 1e-3I
     @assert isposdef(Γy)  # Γy is covariance matrix iff it is positive semi-definite (this check positive definitess)
 
-    return Γy, pool_var_list, yt
+    yt_var_big = Matrix(BlockDiagonal(yt_var_list_big))
+
+    return Γy, pool_var_list, yt, yt_big, P_pca_list, yt_var_big
 end
 

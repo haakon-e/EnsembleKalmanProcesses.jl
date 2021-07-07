@@ -24,8 +24,16 @@ Inputs:
  - scampy_dir       :: path/to/SCAMPy/
  - scm_data_root    :: Path to input data for the SCM model.
  - scm_names        :: Names of SCAMPy cases
+ - y_names          :: Name of outputs requested for each flow configuration.
+ - t_starts         :: Vector of starting times for observation intervals. 
+                        If `t_ends=nothing`, snapshots at `t_starts` are returned.
+- t_ends            :: Vector of ending times for observation intervals.
+- norm_var_list     :: Pooled variance vectors. If given, use to normalize output.
+- P_pca_list        :: Vector of projection matrices `P_pca` for each flow configuration.
 Outputs:
- - sim_dirs         :: array of paths pointing to output data 
+- sim_dirs          :: array of paths pointing to output data
+- g_scm             :: Vector of model evaluations concatenated for all flow configurations.
+- g_scm_pca         :: Projection of `g_scm` onto principal subspace spanned by eigenvectors.
 """
 function run_SCAMPy(
         u::Array{FT, 1},
@@ -37,6 +45,7 @@ function run_SCAMPy(
         t_starts::Array{FT,1},
         t_ends::Array{FT,1};
         norm_var_list = nothing,
+        P_pca_list = nothing,
     ) where {FT<:AbstractFloat}
     println("Running SCAMPy...")
     # Check dimensionality
@@ -47,6 +56,7 @@ function run_SCAMPy(
     sim_dirs = run_SCAMPy_handler(u, u_names, scampy_dir, scm_names, scm_data_root)
 
     g_scm = zeros(0)
+    g_scm_pca = zeros(0)
     for (sim_dir, t_start, t_end, y_name, norm_var, ) in zip(sim_dirs, t_starts, t_ends, y_names, norm_var_list)
         # PS: a sim_dir = a SCAMPy case, e.g. StochasticBomex, or StochasticTRMM_LBA
         g_scm_flow = get_profile(sim_dir, y_name, ti = t_start, tf = t_end)
@@ -54,13 +64,24 @@ function run_SCAMPy(
             g_scm_flow = normalize_profile(g_scm_flow, y_name, norm_var)
         end
         append!(g_scm, g_scm_flow)
+        if !isnothing(P_pca_list)
+            append!(g_scm_pca, P_pca_list[i]' * g_scm_flow)
+        end
     end
     # penalize nan-values in output
     for i in eachindex(g_scm)
         g_scm[i] = isnan(g_scm[i]) ? 1.0e5 : g_scm[i]
     end
-
-    return sim_dirs, g_scm
+    if !isnothing(P_pca_list)
+        for i in eachindex(g_scm_pca)
+            g_scm_pca[i] = isnan(g_scm_pca[i]) ? 1.0e5 : g_scm_pca[i]
+        end
+        println("LENGTH OF G_SCM_ARR : ", length(g_scm))
+        println("LENGTH OF G_SCM_ARR_PCA : ", length(g_scm_pca))
+        return sim_dirs, g_scm, g_scm_pca
+    else
+        return sim_dirs, g_scm, nothing
+    end
 end
 
 
