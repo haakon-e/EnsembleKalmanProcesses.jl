@@ -56,8 +56,12 @@ function run_calibrate()
     scm_names = ["StochasticBomex"]  # same as `les_names` in perfect model setting
     scm_data_root = pwd()  # path to folder with `Output.<scm_name>.00000` files
     scampy_dir = "/groups/esm/hervik/calibration/SCAMPy"  # path to SCAMPy
-
+    save_full_EDMF_data = false  # if true, save each ensemble output file
     outdir_root = "/groups/esm/hervik/calibration/output/eki_bomex"
+
+    @assert all(isdir.(joinpath.(les_root, ["Output.$n.$s" for (n,s) in zip(les_names,les_suffixes)])))
+    @assert all(isdir.(joinpath.(scm_data_root, ["Output.$s.00000" for s in scm_names])))
+    @assert isdir(scampy_dir)
 
     # Define observation window (s)
     (t_starts, t_ends) = [[4.0], [6.0]] .* 3600  # 4 to 6 hrs
@@ -79,7 +83,7 @@ function run_calibrate()
     println("NUMBER OF ITERATIONS: $N_iter")
 
     initial_params = construct_initial_ensemble(priors, N_ens, rng_seed=rand(1:1000))
-    ekobj = EnsembleKalmanProcess(initial_params, yt, Γy, algo )
+    ekobj = EnsembleKalmanProcess(initial_params, yt, Γy, algo)
 
     # Define caller function
     @everywhere g_(x::Array{Float64,1}) = run_SCAMPy(
@@ -177,18 +181,31 @@ function run_calibrate()
             npzwrite(joinpath(outdir_path,"P_pca_$(scm_names[l]).npy"), P_pca)
             npzwrite(joinpath(outdir_path,"pool_var_$(scm_names[l]).npy"), pool_var_list[l])
         end
-        # Save full EDMF data from every ensemble
-        eki_iter_path = joinpath(outdir_path, "EKI_iter_$i")
-        mkpath(eki_iter_path)
-        # get a simulation directory `.../Output.SimName.UUID`, and corresponding parameter name
-        for (ens_i, sim_dirs) in enumerate(sim_dirs_arr)  # each ensemble returns a list of simulation directories
-	    for (scm_name, sim_dir) in zip(scm_names, sim_dirs)
-                # Copy simulation data to output directory
-                dirname = splitpath(sim_dir)[end]
-                @assert dirname[1:7] == "Output."  # sanity check
-                tmp_data_path = joinpath(sim_dir, "stats/Stats.$scm_name.nc")
-                save_data_path = joinpath(eki_iter_path, "Stats.$scm_name.$ens_i.nc")
-                run(`cp $tmp_data_path $save_data_path`)
+        
+        if save_full_EDMF_data
+            # Save full EDMF data from every ensemble
+            eki_iter_path = joinpath(outdir_path, "EKI_iter_$i")
+            mkpath(eki_iter_path)
+            # get a simulation directory `.../Output.SimName.UUID`, and corresponding parameter name
+            for (ens_i, sim_dirs) in enumerate(sim_dirs_arr)  # each ensemble returns a list of simulation directories
+                ens_i_path = joinpath(eki_iter_path, "ens_$ens_i")
+                mkpath(ens_i_path)
+                for (scm_name, sim_dir) in zip(scm_names, sim_dirs)
+                    # Copy simulation data to output directory
+                    dirname = splitpath(sim_dir)[end]
+                    @assert dirname[1:7] == "Output."  # sanity check
+                    # Stats file
+                    tmp_data_path = joinpath(sim_dir, "stats/Stats.$scm_name.nc")
+                    save_data_path = joinpath(ens_i_path, "Stats.$scm_name.$ens_i.nc")
+                    run(`cp $tmp_data_path $save_data_path`)
+                    # namefile and paramfile
+                    tmp_namefile_path = joinpath(sim_dir, "$scm_name.in")
+                    save_namefile_path = joinpath(ens_i_path, "$scm_name.in")
+                    run(`cp $tmp_namefile_path $save_namefile_path`)
+                    tmp_paramfile_path = joinpath(sim_dir, "paramlist_$scm_name.in")
+                    save_paramfile_path = joinpath(ens_i_path, "paramlist_$scm_name.in")
+                    run(`cp $tmp_paramfile_path $save_paramfile_path`)
+                end
             end
         end
     end
