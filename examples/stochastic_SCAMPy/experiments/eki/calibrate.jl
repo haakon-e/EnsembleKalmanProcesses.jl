@@ -56,7 +56,7 @@ function run_calibrate()
     scm_names = ["StochasticBomex"]  # same as `les_names` in perfect model setting
     scm_data_root = pwd()  # path to folder with `Output.<scm_name>.00000` files
     scampy_dir = "/groups/esm/hervik/calibration/SCAMPy"  # path to SCAMPy
-    save_full_EDMF_data = false  # if true, save each ensemble output file
+    save_full_EDMF_data = true  # if true, save each ensemble output file
     outdir_root = "/groups/esm/hervik/calibration/output/eki_bomex"
 
     @assert all(isdir.(joinpath.(les_root, ["Output.$n.$s" for (n,s) in zip(les_names,les_suffixes)])))
@@ -67,7 +67,7 @@ function run_calibrate()
     (t_starts, t_ends) = [[4.0], [6.0]] .* 3600  # 4 to 6 hrs
     # Compute data covariance
     Γy, pool_var_list, yt, yt_big, P_pca_list, yt_var_big = compute_data_covariance(
-        les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root
+        les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root, perform_PCA=perform_PCA
     )
     d = length(yt)
 
@@ -216,7 +216,7 @@ function run_calibrate()
 end
 
 
-function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root)
+function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_starts, t_ends, les_root, scm_data_root; perform_PCA=true)
     @assert (  # Each entry in these lists correspond to one simulation case
         length(les_names) == length(les_suffixes) == length(scm_names) 
         == length(y_names) == length(t_starts) == length(t_ends)
@@ -226,7 +226,7 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
     yt_var_list = Array{Float64, 2}[]
     yt_big = zeros(0)
     yt_var_list_big = Array{Float64, 2}[]
-    P_pca_list = []
+    P_pca_list = Array[]
     pool_var_list = []  # pooled variance (see `get_time_covariance` in `helper_funcs.jl`)
 
     for (les_name, les_suffix, scm_name, y_name, tstart, tend) in zip(
@@ -246,7 +246,7 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
             push!(pool_var_list, pool_var)
             append!(yt, yt_)
             push!(yt_var_list, yt_var_)
-            global P_pca_list = nothing
+            #global P_pca_list = nothing
         end
         # Save full dimensionality (normalized) output for error computation
         append!(yt_big, yt_)
