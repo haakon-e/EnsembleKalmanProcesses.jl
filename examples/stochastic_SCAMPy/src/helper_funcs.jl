@@ -57,11 +57,13 @@ function run_SCAMPy(
 
     g_scm = zeros(0)
     g_scm_pca = zeros(0)
-    for (sim_dir, t_start, t_end, y_name, norm_var, ) in zip(sim_dirs, t_starts, t_ends, y_names, norm_var_list)
+    for (i, (sim_dir, t_start, t_end, y_name, )) in enumerate(zip(
+            sim_dirs, t_starts, t_ends, y_names,
+        ))
         # PS: a sim_dir = a SCAMPy case, e.g. StochasticBomex, or StochasticTRMM_LBA
         g_scm_flow = get_profile(sim_dir, y_name, ti = t_start, tf = t_end)
         if !isnothing(norm_var_list)
-            g_scm_flow = normalize_profile(g_scm_flow, y_name, norm_var)
+            g_scm_flow = normalize_profile(g_scm_flow, y_name, norm_var_list[i])
         end
         append!(g_scm, g_scm_flow)
         if !isnothing(P_pca_list)

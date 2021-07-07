@@ -227,7 +227,7 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
     yt_big = zeros(0)
     yt_var_list_big = Array{Float64, 2}[]
     P_pca_list = Array[]
-    pool_var_list = []  # pooled variance (see `get_time_covariance` in `helper_funcs.jl`)
+    pool_var_list = Array{Float64, 1}[]  # pooled variance (see `get_time_covariance` in `helper_funcs.jl`)
 
     for (les_name, les_suffix, scm_name, y_name, tstart, tend) in zip(
             les_names, les_suffixes, scm_names, y_names, t_starts, t_ends
@@ -237,16 +237,15 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
         # Get (interpolated and pool-normalized) observations, get pool variance vector
         les_dir = joinpath(les_root, "Output.$les_name.$les_suffix")
         yt_, yt_var_, pool_var = obs_LES(y_name, les_dir, tstart, tend, z_scm = z_scm)
+        push!(pool_var_list, pool_var)
         if perform_PCA
             yt_pca, yt_var_pca, P_pca = obs_PCA(yt_, yt_var_)
             append!(yt, yt_pca)
             push!(yt_var_list, yt_var_pca)
             push!(P_pca_list, P_pca)
         else
-            push!(pool_var_list, pool_var)
             append!(yt, yt_)
             push!(yt_var_list, yt_var_)
-            #global P_pca_list = nothing
         end
         # Save full dimensionality (normalized) output for error computation
         append!(yt_big, yt_)
@@ -257,7 +256,9 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
     @assert isposdef(Γy)  # Γy is covariance matrix iff it is positive semi-definite (this check positive definitess)
 
     yt_var_big = Matrix(BlockDiagonal(yt_var_list_big))
-
-    return Γy, pool_var_list, yt, yt_big, P_pca_list, yt_var_big
+    if perform_PCA
+        return Γy, pool_var_list, yt, yt_big, P_pca_list, yt_var_big
+    else
+        return Γy, pool_var_list, yt, yt_big, nothing, yt_var_big
 end
 
