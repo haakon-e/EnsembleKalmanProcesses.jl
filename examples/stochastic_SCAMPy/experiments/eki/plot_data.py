@@ -287,10 +287,11 @@ def finalize_plot2(cls: PlottingArgs) -> None: finalize_plot(cls.fig, cls.axs, c
 def plot_scm2(cls: PlottingArgs, data, scm_label, color) -> None: plot_scm(cls.axs, data, cls.tmin, cls.tmax, cls.scm_vars, scm_label, color, color)
 def plot_les2(cls: PlottingArgs, data) -> None: plot_les(cls.axs, data, cls.les_vars, cls.tmin, cls.tmax)
 
-def load_scm_data(scm_folders):
+def load_scm_data(scm_folders, prefix_folder=None):
     data = {}
+    query = f"{prefix_folder}/Stats.*.nc" if prefix_folder else "Stats.*.nc"
     for folder in scm_folders:
-        files = Path(folder).glob("ens_*/Stats.*.nc") 
+        files = Path(folder).glob(query)
         data[folder.name] = [read_scm_data(file) for file in files]
     return data
 
@@ -308,7 +309,12 @@ print(f"Plot creator. Output located within: {root_folder}")
 # (Read in parallel: https://stackoverflow.com/a/38378869)
 print("Loading data...")
 scm_folders = [x for x in scm_root_folder.glob("EKI_iter_1*") if x.is_dir()]
-all_scm_data = load_scm_data(scm_folders)
+
+# add folder to deterministic reference data
+no_noise_folder = [Path("/central/groups/esm/hervik/calibration/output/stochastic_ensembles/StochasticBomex/scm_data/noise0.0")]
+
+all_scm_data = load_scm_data(scm_folders, prefix_folder="ens_*")
+all_scm_data.update(load_scm_data(no_noise_folder))
 
 # get LES data
 les_data = get_LES_data(case, les_folder)
