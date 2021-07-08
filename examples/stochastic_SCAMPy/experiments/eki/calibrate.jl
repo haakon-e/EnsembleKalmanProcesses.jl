@@ -78,7 +78,7 @@ function run_calibrate()
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
     N_ens = 40 # number of ensemble members
     N_iter = 10 # number of EKP iterations.
-    Δt = 1.0 # Artificial time stepper of the EKI.
+    Δt = 0.5 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
     println("NUMBER OF ITERATIONS: $N_iter")
 
@@ -260,5 +260,6 @@ function compute_data_covariance(les_names, les_suffixes, scm_names, y_names, t_
         return Γy, pool_var_list, yt, yt_big, P_pca_list, yt_var_big
     else
         return Γy, pool_var_list, yt, yt_big, nothing, yt_var_big
+    end
 end
 

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#Submit this script with: sbatch job_script_name
+
+#SBATCH --time=00:10:00   # walltime
+#SBATCH --mem-per-cpu=16G   # memory per CPU core
+#SBATCH --ntasks=1  # number of processor cores (i.e. tasks)
+#SBATCH --nodes=1   # number of nodes
+#SBATCH -J "plot_eki"   # job name
+
+source ~/miniconda3/bin/activate stats
+python plot_data.py
+
