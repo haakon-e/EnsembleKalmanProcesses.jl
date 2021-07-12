@@ -71,7 +71,7 @@ outdir_root = pwd()
 
 # Init arrays
 yt = zeros(0)
-yt_var_list = []
+yt_var_list = Array{Float64, 2}[]
 yt_big = zeros(0)
 yt_var_list_big = Array{Float64, 2}[]
 P_pca_list = []
