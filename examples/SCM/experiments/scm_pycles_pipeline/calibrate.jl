@@ -28,23 +28,23 @@ function construct_priors()
     # Define the parameters that we want to learn
     params = Dict(
         # mixing length parameters
-        "tke_ed_coeff"                      => [bounded(0.0, 1.5*0.14)],
-        "tke_diss_coeff"                    => [bounded(0.0, 1.5*0.22)],
-        "static_stab_coeff"                 => [bounded(0.0, 1.5*0.4)],
-        "lambda_stab"                       => [bounded(0.0, 1.0)],
+        # "tke_ed_coeff"                      => [bounded(0.0, 1.5*0.14)],
+        # "tke_diss_coeff"                    => [bounded(0.0, 1.5*0.22)],
+        # "static_stab_coeff"                 => [bounded(0.0, 1.5*0.4)],
+        # "lambda_stab"                       => [bounded(0.0, 1.0)],
         # entrainment parameters
-        "entrainment_factor"                => [bounded(0.0, 1.5*0.33)],
-        "detrainment_factor"                => [bounded(0.0, 1.5*0.31)],
-        "turbulent_entrainment_factor"      => [bounded(0.0, 1.5*0.015)],
-        "entrainment_smin_tke_coeff"        => [bounded(0.0, 1.5*0.3)],
-        "updraft_mixing_frac"               => [bounded(0.0, 1.5*0.25)],
-        "entrainment_sigma"                 => [bounded(0.0, 1.5*10.0)],
-        "sorting_power"                     => [bounded(0.0, 1.5*2.0)],
-        "aspect_ratio"                      => [bounded(0.01*0.2, 1.5*0.2)],
+        "entrainment_factor"                => [bounded(0.0, 10*0.33)],
+        "detrainment_factor"                => [bounded(0.0, 10*0.31)],
+        "turbulent_entrainment_factor"      => [bounded(0.0, 10*0.015)],
+        "entrainment_smin_tke_coeff"        => [bounded(0.0, 10*0.3)],
+        "updraft_mixing_frac"               => [bounded(0.0, 10*0.25)],
+        "entrainment_sigma"                 => [bounded(0.0, 10*10.0)],
+        "sorting_power"                     => [bounded(0.0, 10*2.0)],
+        "aspect_ratio"                      => [bounded(0.01*0.2, 10*0.2)],
         # pressure parameters
-        "pressure_normalmode_adv_coeff"     => [bounded(0.0, 1.0)],     # β₁
-        "pressure_normalmode_drag_coeff"    => [bounded(5.0, 15.0)],    # β₂
-        "pressure_normalmode_buoy_coeff1"   => [bounded(0.0, 1.0)],     # α₁
+        # "pressure_normalmode_adv_coeff"     => [bounded(0.0, 1.0)],     # β₁
+        # "pressure_normalmode_drag_coeff"    => [bounded(5.0, 15.0)],    # β₂
+        # "pressure_normalmode_buoy_coeff1"   => [bounded(0.0, 1.0)],     # α₁
     )
     param_names = collect(keys(params))
     constraints = collect(values(params))
@@ -101,7 +101,7 @@ function run_calibrate(return_ekobj=false)
     perform_PCA = false # Performs PCA on data
     normalize = true  # whether to normalize data by pooled variance
     # Flag to indicate whether reference data is from a perfect model (i.e. SCM instead of LES)
-    model_type::Symbol = :les  # :les or :scm
+    model_type::Symbol = :scm  # :les or :scm
     # Flags for saving output data
     save_eki_data = true  # eki output
     save_ensemble_data = false  # .nc-files from each ensemble run
@@ -119,7 +119,7 @@ function run_calibrate(return_ekobj=false)
     #########
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
-    N_ens = 150 # number of ensemble members
+    N_ens = 100 # number of ensemble members
     N_iter = 20 # number of EKP iterations.
     Δt = 1.0 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
