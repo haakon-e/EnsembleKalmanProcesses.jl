@@ -28,8 +28,10 @@ function construct_priors()
     # Define the parameters that we want to learn
     params = Dict(
         # stochastic entrainment parameters
-        "entr_lognormal_var"        => [bounded(0.01, 2.0)],
-        "detr_lognormal_var"        => [bounded(0.01, 2.0)],
+        "sde_entr_theta"    => [bounded(0.0, 3.0)],
+        "sde_entr_std"      => [bounded(0.0, 3.0)],
+        "sde_detr_theta"    => [bounded(0.0, 3.0)],
+        "sde_detr_std"      => [bounded(0.0, 3.0)],
     )
     param_names = collect(keys(params))
     constraints = collect(values(params))
@@ -57,7 +59,7 @@ function construct_reference_models()::Vector{ReferenceModel}
         # Simulation case specification
         scm_root = scm_root,
         scm_name = "Bomex",
-        scm_suffix = "stoch",
+        scm_suffix = "stoch_sde",
         # Define observation window (s)
         t_start = 4.0 * 3600,  # 4hrs
         t_end = 24.0 * 3600,  # 24hrs
@@ -105,7 +107,7 @@ function run_calibrate(return_ekobj=false)
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
     N_ens = 20 # number of ensemble members
-    N_iter = 5 # number of EKP iterations.
+    N_iter = 10 # number of EKP iterations.
     Δt = 1.0 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
     println("NUMBER OF ITERATIONS: $N_iter")
@@ -122,7 +124,7 @@ function run_calibrate(return_ekobj=false)
     # Create output dir
     algo_type = typeof(algo) == Sampler{Float64} ? "eks" : "eki"
     n_param = length(priors.names)
-    outdir_path = joinpath(outdir_root, "results_$(algo_type)_dt$(Δt)_p$(n_param)_e$(N_ens)_i$(N_iter)_d$(d)_$(model_type)_stoch")
+    outdir_path = joinpath(outdir_root, "results_$(algo_type)_dt$(Δt)_p$(n_param)_e$(N_ens)_i$(N_iter)_d$(d)_$(model_type)_stoch_sde")
     println("Name of outdir path for this EKP is: $outdir_path")
     mkpath(outdir_path)
 
