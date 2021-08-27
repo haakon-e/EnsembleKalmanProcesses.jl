@@ -6,24 +6,27 @@ using Statistics
 inpath = "/groups/esm/hervik/calibration/EnsembleKalmanProcesses.jl/examples/SCAMPy/experiments/scm_pycles_pipeline/results_eki_dt1.0_p15_e150_i10_d5"         # path to directory of jld2 ekp file
 outpath = inpath        # path to directory where output plots should be stored
 ekp_path = "ekp.jld2"   # name of ekp data file
-param_names = [         # name of parameters that were calibrated
-    "turbulent_entrainment_factor",
-    "lambda_stab",
-    "entrainment_scale",
-    "entrainment_smin_tke_coeff",
-    "detrainment_factor",
-    "static_stab_coeff",
-    "sorting_power",
-    "entrainment_factor",
-    "entrainment_sigma",
-    "tke_diss_coeff",
-    # "updraft_mixing_frac",
-    "pressure_normalmode_adv_coeff",
-    "pressure_normalmode_drag_coeff",
+param_names = [         # names of parameters that were calibrated
+    # mixing length parameters
     "tke_ed_coeff",
+    "tke_diss_coeff",
+    "static_stab_coeff",
+    "lambda_stab",
+    # entrainment parameters
+    "entrainment_factor",
+    "detrainment_factor",
+    "turbulent_entrainment_factor",
+    "entrainment_smin_tke_coeff",
+    "updraft_mixing_frac",
+    "entrainment_sigma",
+    "sorting_power",
     "aspect_ratio",
-    "pressure_normalmode_buoy_coeff1",
+    # pressure parameters
+    "pressure_normalmode_adv_coeff",     # β₁
+    "pressure_normalmode_drag_coeff",    # β₂
+    "pressure_normalmode_buoy_coeff1",   # α₁
 ]
+
 n_param = length(param_names)
 
 # Load data
