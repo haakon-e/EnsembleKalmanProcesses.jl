@@ -27,9 +27,9 @@ using JLD2
 function construct_priors()
     # Define the parameters that we want to learn
     params = Dict(
-        # entrainment parameters
-        "entrainment_factor"        => [bounded(0.0, 5*0.33)],
-        "detrainment_factor"        => [bounded(0.0, 5*0.31)],
+        # stochastic entrainment parameters
+        "entr_lognormal_var"        => [bounded(0.01, 2.0)],
+        "detr_lognormal_var"        => [bounded(0.01, 2.0)],
     )
     param_names = collect(keys(params))
     constraints = collect(values(params))
