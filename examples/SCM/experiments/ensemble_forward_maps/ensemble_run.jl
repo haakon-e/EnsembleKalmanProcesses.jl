@@ -14,11 +14,12 @@ using JLD2
 
 function run_ensemble(param_names, param_values, N_ens)
 
-    scm_root = "/groups/esm/hervik/calibration/static_input"
+    scm_root = "/groups/esm/hervik/calibration"
     ref_model = ReferenceModel(
         y_names = [""], les_root = "", les_name = "", les_suffix = "",
         scm_root = scm_root,
         scm_name = "Bomex",
+        scm_suffix = "stoch",
         t_start = 4.0 * 3600,  # 4hrs
         t_end = 6.0 * 3600,    # 6hrs
     )

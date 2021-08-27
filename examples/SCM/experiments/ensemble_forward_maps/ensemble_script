@@ -3,9 +3,10 @@
 #Submit this script with: sbatch ensemble_script
 
 #SBATCH --time=1:00:00   # walltime
-#SBATCH --ntasks=10  # number of processor cores (i.e. tasks)
+#SBATCH --mem-per-cpu=16G   # memory per CPU core
+#SBATCH --ntasks=22  # number of processor cores (i.e. tasks)
 #SBATCH -J "scm_ens"   # job name
 
 julia --project -e 'using Pkg; Pkg.instantiate(); Pkg.API.precompile()'
 
-julia --project -p 10 parallel_ensemble_runs.jl
+julia --project -p 22 parallel_ensemble_runs.jl

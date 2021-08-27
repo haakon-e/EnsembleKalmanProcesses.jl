@@ -299,7 +299,7 @@ def load_scm_data(scm_folders):
 case = "Bomex"  # used to fetch correct LES data
 scm_name = f"Stochastic{case}"
 _root = Path("/central/groups/esm/hervik/calibration/EnsembleKalmanProcesses.jl/examples/SCM/experiments/ensemble_forward_maps/output")
-root_folder = _root / "results_ens_p2_e10_Bomex_lognormal"
+root_folder = _root / "results_ens_p2_e20_Bomex_lognormal"
 scm_root_folder = root_folder / "scm_data"
 les_folder = root_folder / "les_data"
 plotsdir = root_folder / "plots"
@@ -332,8 +332,8 @@ def all_plots(scm_data, suffix=""):
     plot_les2(third, les_data)
 
 	# colors:  https://colorbrewer2.org/?type=diverging&scheme=Spectral&n=10
-	# colors = ['#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2']
-    colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f']
+    colors = ['#9e0142','#d53e4f','#f46d43','#fdae61','#fee08b','#e6f598','#abdda4','#66c2a5','#3288bd','#5e4fa2']
+    # colors = ['#7fc97f','#beaed4','#fdc086','#ffff99','#386cb0','#f0027f']
 
     print("Plotting SCM...")
 	# Plot SCM
