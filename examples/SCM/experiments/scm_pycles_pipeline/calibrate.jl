@@ -27,12 +27,28 @@ using JLD2
 function construct_priors()
     # Define the parameters that we want to learn
     params = Dict(
+        # mixing length parameters
+        "tke_ed_coeff"                      => [bounded(0.0, 1.5*0.14)],
+        "tke_diss_coeff"                    => [bounded(0.0, 1.5*0.22)],
+        "static_stab_coeff"                 => [bounded(0.0, 1.5*0.4)],
+        "lambda_stab"                       => [bounded(0.0, 1.0)],
         # entrainment parameters
-        "entrainment_factor"        => [bounded(0.0, 5*0.33)],
-        "detrainment_factor"        => [bounded(0.0, 5*0.31)],
+        "entrainment_factor"                => [bounded(0.0, 1.5*0.33)],
+        "detrainment_factor"                => [bounded(0.0, 1.5*0.31)],
+        "turbulent_entrainment_factor"      => [bounded(0.0, 1.5*0.015)],
+        "entrainment_smin_tke_coeff"        => [bounded(0.0, 1.5*0.3)],
+        "updraft_mixing_frac"               => [bounded(0.0, 1.5*0.25)],
+        "entrainment_sigma"                 => [bounded(0.0, 1.5*10.0)],
+        "sorting_power"                     => [bounded(0.0, 1.5*2.0)],
+        "aspect_ratio"                      => [bounded(0.01*0.2, 1.5*0.2)],
+        # pressure parameters
+        "pressure_normalmode_adv_coeff"     => [bounded(0.0, 1.0)],     # β₁
+        "pressure_normalmode_drag_coeff"    => [bounded(5.0, 15.0)],    # β₂
+        "pressure_normalmode_buoy_coeff1"   => [bounded(0.0, 1.0)],     # α₁
     )
     param_names = collect(keys(params))
     constraints = collect(values(params))
+
     n_param = length(param_names)
 
     # All vars are approximately uniform in unconstrained space
