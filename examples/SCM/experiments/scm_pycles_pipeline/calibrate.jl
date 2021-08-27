@@ -44,7 +44,7 @@ end
 """ Define reference simulations for loss function"""
 function construct_reference_models()::Vector{ReferenceModel}
     les_root = "/groups/esm/zhaoyi/pycles_clima"
-    scm_root = "/groups/esm/hervik/calibration/static_input"  # path to folder with `Output.<scm_name>.00000` files
+    scm_root = "/groups/esm/hervik/calibration"  # path to folder with `Output.<scm_name>.00000` files
 
     # Calibrate using reference data and options described by the ReferenceModel struct.
     ref_bomex = ReferenceModel(
@@ -86,7 +86,7 @@ function run_calibrate(return_ekobj=false)
     perform_PCA = false # Performs PCA on data
     normalize = true  # whether to normalize data by pooled variance
     # Flag to indicate whether reference data is from a perfect model (i.e. SCM instead of LES)
-    model_type::Symbol = :les  # :les or :scm
+    model_type::Symbol = :scm  # :les or :scm
     # Flags for saving output data
     save_eki_data = true  # eki output
     save_ensemble_data = false  # .nc-files from each ensemble run
@@ -104,8 +104,8 @@ function run_calibrate(return_ekobj=false)
     #########
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
-    N_ens = 120 # number of ensemble members
-    N_iter = 10 # number of EKP iterations.
+    N_ens = 20 # number of ensemble members
+    N_iter = 5 # number of EKP iterations.
     Δt = 1.0 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
     println("NUMBER OF ITERATIONS: $N_iter")
@@ -122,7 +122,7 @@ function run_calibrate(return_ekobj=false)
     # Create output dir
     algo_type = typeof(algo) == Sampler{Float64} ? "eks" : "eki"
     n_param = length(priors.names)
-    outdir_path = joinpath(outdir_root, "results_$(algo_type)_dt$(Δt)_p$(n_param)_e$(N_ens)_i$(N_iter)_d$(d)_$(model_type)")
+    outdir_path = joinpath(outdir_root, "results_$(algo_type)_dt$(Δt)_p$(n_param)_e$(N_ens)_i$(N_iter)_d$(d)_$(model_type)_stoch")
     println("Name of outdir path for this EKP is: $outdir_path")
     mkpath(outdir_path)
 
