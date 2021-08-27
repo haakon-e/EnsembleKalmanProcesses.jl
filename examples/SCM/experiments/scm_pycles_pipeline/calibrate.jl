@@ -57,6 +57,7 @@ function construct_reference_models()::Vector{ReferenceModel}
         # Simulation case specification
         scm_root = scm_root,
         scm_name = "Bomex",
+        scm_suffix = "stoch",
         # Define observation window (s)
         t_start = 4.0 * 3600,  # 4hrs
         t_end = 24.0 * 3600,  # 24hrs
@@ -103,7 +104,7 @@ function run_calibrate(return_ekobj=false)
     #########
 
     algo = Inversion() # Sampler(vcat(get_mean(priors)...), get_cov(priors))
-    N_ens = 20 # number of ensemble members
+    N_ens = 120 # number of ensemble members
     N_iter = 10 # number of EKP iterations.
     Δt = 1.0 # Artificial time stepper of the EKI.
     println("NUMBER OF ENSEMBLE MEMBERS: $N_ens")
