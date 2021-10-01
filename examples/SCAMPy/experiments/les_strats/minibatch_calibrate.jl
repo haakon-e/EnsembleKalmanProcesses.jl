@@ -68,7 +68,13 @@ variance_loss = 1.0e-3 # PCA variance loss
 noisy_obs = true # Choice of covariance in evaluation of y_{j+1} in EKI. True -> Γy, False -> 0
 
 sim_names = ["DYCOMS_RF01", "GABLS", "Nieuwstadt", "Bomex"]
-sim_suffix = [".may20", ".iles128wCov", ".dry11", ".may18"]
+les_suffixes = ["may20", "iles128wCov", "dry11", "may18"]
+les_root = "/groups/esm/ilopezgo"
+scm_data_root = pwd()
+scm_dir = "/home/ilopezgo/SCAMPy"
+save_full_EDMF_data = false  # if true, save each ensemble output file
+outdir_root = pwd()
+
 C = sum([length(ti_) for ti_ in ti])
 sim_num = length(sim_names)
 
@@ -79,13 +85,19 @@ yt_big = zeros(0)
 yt_var_list_big = Array{Float64, 2}[]
 P_pca_list = Array{Float64, 2}[]
 pool_var_list = []
+
+@assert (  # Each entry in these lists correspond to one simulation case
+     length(sim_names) == length(les_suffixes)
+     == length(y_names) == length(ti) == length(tf)
+ )
+ 
 for (i, sim_name) in enumerate(sim_names) # Loop on simulations
     for (j, ti_j) in enumerate(ti[i]) # Loop on time intervals
         tf_j = tf[i][j]
         les_dir = occursin("Nieuwstadt", sim_name) ? 
-            string("/groups/esm/ilopezgo/Output.", "Soares", sim_suffix[i]) : string("/groups/esm/ilopezgo/Output.", sim_name, sim_suffix[i])
+            joinpath(les_root, "Output.Soares.$(les_suffixes[i])") : joinpath(les_root, "Output.$sim_name.$(les_suffixes[i])")
         # Get SCM vertical levels for interpolation
-        z_scm = get_profile(string("Output.", sim_name, ".00000"), ["z_half"])
+        z_scm = get_profile(joinpath(scm_data_root, "Output.$sim_name.00000"), ["z_half"])
         # Get (interpolated and pool-normalized) observations, get pool variance vector
         yt_, yt_var_, pool_var = obs_LES(y_names[i], les_dir, ti_j, tf_j, z_scm = z_scm, normalize=normalized)
         push!(pool_var_list, pool_var)
@@ -124,7 +136,7 @@ end
 
 algo = Unscented(vcat(get_mean(priors)...), get_cov(priors), 1.0, 0 ) # Sampler(vcat(get_mean(priors)...), get_cov(priors)) # Inversion() # Unscented(vcat(get_mean(priors)...), get_cov(priors), length(yt), 1.0, 0 )
 N_ens = typeof(algo) == Unscented{Float64,Int64} ? 2*n_param + 1 : 50 # number of ensemble members
-N_iter = 15 # number of EKP iterations.
+N_iter = 10 # number of EKP iterations.
 Δt = 1.0 # follows scaling by batch size
 
 println("NUMBER OF ENSEMBLE MEMBERS: ", N_ens)
@@ -141,9 +153,11 @@ end
 ekobj = typeof(algo) == Unscented{Float64,Int64} ? 
     MiniBatchKalmanProcess( algo ) : MiniBatchKalmanProcess(initial_params, algo )
 scm_dir = "/home/ilopezgo/SCAMPy/"
-@everywhere g_(x::Array{Float64,1}) = run_SCAMPy(x, $param_names,
-       $y_names, $scm_dir, $ti, $tf, P_pca_list = $P_pca_list, norm_var_list = $pool_var_list)
-
+@everywhere g_(x::Array{Float64,1}) = run_SCAMPy(
+     x, $param_names, $y_names, $scm_dir, 
+     $scm_data_root, $sim_names, $ti, $tf,
+     P_pca_list = $P_pca_list, norm_var_list = $pool_var_list,
+ )
 # Mini-batch dispatch
 minibatch_on_sim(iter) = [iter%C+1]
 minibatch_on_time(iter) = [time_index for time_index in 1:C
@@ -181,7 +195,7 @@ for i in 1:N_iter
     params = [row[:] for row in eachrow(params_cons_i')]
     @everywhere params = $params
     array_of_tuples = pmap(g_, params) # Outer dim is params iterator
-    (g_ens_arr, g_ens_arr_pca) = ntuple(l->getindex.(array_of_tuples,l),2) # Outer dim is G̃, G 
+    (sim_dirs_arr, g_ens_arr, g_ens_arr_pca) = ntuple(l->getindex.(array_of_tuples,l),3) # Outer dim is G̃, G 
     println("LENGTH OF G_ENS_ARR", length(g_ens_arr))
     println("LENGTH OF G_ENS_ARR_PCA", length(g_ens_arr_pca))
     println(string("\n\nEKP evaluation ",i," finished. Updating ensemble ...\n"))
@@ -200,7 +214,7 @@ for i in 1:N_iter
     end
     println("\nEnsemble updated. Saving results to file...\n")
     # Save EKP information to file
-    save(string(outdir_path,"/ekp.jld2"),
+    save(joinpath(outdir_path, "ekp.jld2"),
         "ekp_u", transform_unconstrained_to_constrained(priors, get_u(ekobj)),
         "ekp_g", get_g(ekobj),
         "truth_mean", get_obs(ekobj),
@@ -238,5 +252,32 @@ for i in 1:N_iter
          npzwrite(string(outdir_path,"/pool_var_",l,".npy"), pool_var_list[l])
       end
     end
+
+    if save_full_EDMF_data
+         # Save full EDMF data from every ensemble
+         eki_iter_path = joinpath(outdir_path, "EKI_iter_$i")
+         mkpath(eki_iter_path)
+         # get a simulation directory `.../Output.SimName.UUID`, and corresponding parameter name
+         for (ens_i, sim_dirs) in enumerate(sim_dirs_arr)  # each ensemble returns a list of simulation directories
+             ens_i_path = joinpath(eki_iter_path, "ens_$ens_i")
+             mkpath(ens_i_path)
+             for (sim_name, sim_dir) in zip(sim_names, sim_dirs)
+                 # Copy simulation data to output directory
+                 dirname = splitpath(sim_dir)[end]
+                 @assert dirname[1:7] == "Output."  # sanity check
+                 # Stats file
+                 tmp_data_path = joinpath(sim_dir, "stats/Stats.$sim_name.nc")
+                 save_data_path = joinpath(ens_i_path, "Stats.$sim_name.$ens_i.nc")
+                 run(`cp $tmp_data_path $save_data_path`)
+                 # namefile and paramfile
+                 tmp_namefile_path = joinpath(sim_dir, "$sim_name.in")
+                 save_namefile_path = joinpath(ens_i_path, "$sim_name.in")
+                 run(`cp $tmp_namefile_path $save_namefile_path`)
+                 tmp_paramfile_path = joinpath(sim_dir, "paramlist_$sim_name.in")
+                 save_paramfile_path = joinpath(ens_i_path, "paramlist_$sim_name.in")
+                 run(`cp $tmp_paramfile_path $save_paramfile_path`)
+             end
+         end
+     end
 end
 

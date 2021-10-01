@@ -176,7 +176,7 @@ function run_SCAMPy_handler(
         uuid_start = namelist["meta"]["uuid"][1:end-5]
         namelist["meta"]["uuid"] = "$uuid_start$uuid_end"
         # set output dir to `tmpdir`
-        namelist["output"]["output_root"] = tmpdir
+        namelist["output"]["output_root"] = string(tmpdir, "/")
         # write updated namelist to `tmpdir`
         namelist_path = joinpath(tmpdir, "$simname.in")
         open(namelist_path, "w") do io
